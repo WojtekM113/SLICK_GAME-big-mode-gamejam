@@ -1,0 +1,8 @@
+build/
+*.exe
+SLICK_GAME.exe
+*.o
+*.obj
+
+.cache/
+.zed
