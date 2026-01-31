@@ -1,8 +1,52 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <fstream>
 #include <iostream>
-#include <iterator>
-Rectangle obstacles[2];
+#include <sstream>
+#include <string>
+#include <vector>
+
+enum Environment {
+    wall = 1,
+    box = 2,
+};
+std::vector<Rectangle> obstacles;
+class World {
+  public:
+    bool LoadCSVLevel() {
+        std::ifstream file;
+        file.open("./LdkLevels/test/simplified/Level_0/IntGrid.csv");
+        if (!file.is_open()) {
+            std::cerr << "File couldn't be opened, ldtklevel";
+            return false;
+        }
+        std::string currentLine;
+        int currentRow = 0;
+        while (std::getline(file, currentLine)) {
+            std::stringstream ss(currentLine);
+            std::string cell;
+            int currentCol = 0;
+            // break cells to one tile with ','
+            while (std::getline(ss, cell, ',')) {
+                // get cell type
+                int tileType = std::stoi(cell);
+                switch (tileType) {
+                case wall:
+                    Rectangle rect;
+                    rect.x = currentCol * 64;
+                    rect.y = currentRow * 64;
+                    rect.width = 64;
+                    rect.height = 64;
+                    obstacles.push_back(rect);
+                }
+                currentCol++;
+            }
+            currentRow++;
+        }
+        return true;
+    }
+};
+
 class MovementComponent {
   public:
     Vector2 velocity = {0.0};
@@ -29,15 +73,13 @@ class MovementComponent {
         velocity.x -= velocity.x * friction * dt;
         velocity.y -= velocity.y * friction * dt;
     }
-    
-    void MoveAndCollide()
-    {
-        
-    }
+
+    void MoveAndCollide() {}
 };
+
 class Player {
   public:
-    Vector2 playerPosition{0, 0};
+    Vector2 playerPosition{160, 121};
     Vector2 direction{0, 0};
     Rectangle playerRect{playerPosition.x, playerPosition.y, 64, 64};
     MovementComponent MovementComponent;
@@ -92,25 +134,37 @@ class Player {
 int main() {
     InitWindow(800, 600, "Slick Game");
     SetTargetFPS(60);
+    World world;
+    world.LoadCSVLevel();
 
     Player player;
-
     Vector2 lastPosition{0, 0};
-    Rectangle recA = {125, 125, 64, 64};
-    Rectangle recB = {155, 200, 64, 64};
-    obstacles[0] = recA;
-    obstacles[1] = recB;
+
+    Camera2D camera = {0};
+    camera.target = Vector2{player.playerPosition.x + 20.f, player.playerPosition.y + 20.f};
+    camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
+    camera.zoom = 1.0f;
+
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
         player.player_update();
+        camera.target = Vector2{player.playerPosition.x + 20, player.playerPosition.y + 20};
 
         BeginDrawing();
-        ClearBackground(RAYWHITE);
-        DrawText("Hello!", 40, 180, 30, BLACK);
-        DrawRectangleRec(player.playerRect, player.color);
-        for (int i = 0; i < std::size(obstacles); i++) {
-            DrawRectangleRec(obstacles[i], DARKGREEN);
+        {
+            ClearBackground(RAYWHITE);
+            
+            BeginMode2D(camera);
+            {
+                DrawText("Hello!", 40, 180, 30, BLACK);
+                DrawRectangleRec(player.playerRect, player.color);
+                for (int i = 0; i < obstacles.size(); i++) {
+                    DrawRectangleRec(obstacles[i], BLACK);
+                }
+            }
+            EndMode2D();
         }
+        
         EndDrawing();
     }
 
