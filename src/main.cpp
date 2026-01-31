@@ -8,6 +8,8 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 enum Environment { wall = 1, box = 2, placeholder = 3 };
+enum GameStates { main_menu = 0, game = 1, pause_menu = 2, settings = 3, game_over = 4 };
+static GameStates gamestate = main_menu;
 
 struct Tile {
     Rectangle tileRec;
@@ -111,6 +113,7 @@ class Player {
     Rectangle playerRect{playerPosition.x, playerPosition.y, 64, 64};
     MovementComponent MovementComponent;
     Color color = RED;
+    int playerHealth = 3;
     bool Collide(const Rectangle &rect) {
         if (playerRect.x < rect.x + rect.width && playerRect.x + playerRect.width > rect.x &&
             playerRect.y < rect.y + rect.height && playerRect.y + playerRect.height > rect.y) {
@@ -165,6 +168,19 @@ class Player {
     };
 };
 
+void ReadInput() {
+    if (IsKeyPressed(KEY_P)) {
+        if (gamestate == game) {
+            gamestate = pause_menu;
+        } else if (gamestate == pause_menu) {
+            gamestate = game;
+        }
+    }
+    if (IsKeyPressed(KEY_M)) {
+        gamestate = main_menu;
+    }
+}
+
 int main() {
     InitWindow(800, 600, "Slick Game");
     SetTargetFPS(60);
@@ -178,41 +194,66 @@ int main() {
     camera.target = Vector2{player.playerPosition.x + 20.f, player.playerPosition.y + 20.f};
     camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
     camera.zoom = 1.0f;
-    bool showMessageBox = false;
+    bool startGame = false;
+    bool game_pause = false;
     while (!WindowShouldClose()) {
-        float dt = GetFrameTime();
-        player.player_update();
-        camera.target = Vector2{player.playerPosition.x + 20, player.playerPosition.y + 20};
+        ReadInput();
+
+        switch (gamestate) {
+        case game: {
+            float dt = GetFrameTime();
+            player.player_update();
+            camera.target = Vector2{player.playerPosition.x + 20, player.playerPosition.y + 20};
+            game_pause = false;
+            break;
+        }
+        case pause_menu: {
+            break;
+        }
+        }
 
         BeginDrawing();
-        {
-            ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
-
+        ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
+        switch (gamestate) {
+        case game: {
             BeginMode2D(camera);
             {
-                DrawText("Hello!", 40, 180, 30, BLACK);
                 for (int i = 0; i < obstacles.size(); i++) {
                     DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
                 }
                 DrawRectangleRec(player.playerRect, player.color);
             }
             EndMode2D();
-
-            if (GuiButton(Rectangle{24, 24, 120, 30}, "#191#Show Message"))
-                showMessageBox = true;
-
-            if (showMessageBox) {
-                int result = GuiMessageBox(Rectangle{85, 70, 250, 100}, "#191#Message Box",
-                                           "Hi! This is a message!", "Nice;Cool");
-
-                if (result >= 0)
-                    showMessageBox = false;
-            }
+            break;
         }
-
+        case main_menu: {
+            if (GuiButton(Rectangle{(GetScreenWidth() / 2.f) - 120 / 2.f, 24, 120, 30},
+                          "#191#Show Message")) {
+                startGame = true;
+            }
+            if (startGame) {
+                gamestate = game;
+            }
+            startGame = false;
+            break;
+        }
+        case pause_menu: {
+            BeginMode2D(camera);
+            {
+                for (int i = 0; i < obstacles.size(); i++) {
+                    DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
+                }
+                DrawRectangleRec(player.playerRect, player.color);
+            }
+            EndMode2D();
+            break;
+        }
+        case game_over: {
+            break;
+        }
+        };
         EndDrawing();
-    }
-
+    };
     CloseWindow();
     return 0;
-};
+}
