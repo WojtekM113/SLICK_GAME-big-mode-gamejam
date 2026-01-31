@@ -5,12 +5,21 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
+enum Environment { wall = 1, box = 2, placeholder = 3 };
 
-enum Environment {
-    wall = 1,
-    box = 2,
+struct Tile {
+    Rectangle tileRec;
+    Color tileCol;
+    Environment type;
+    Tile(Rectangle rect, Color color, Environment type) {
+        tileRec = rect;
+        tileCol = color;
+        this->type = type;
+    }
 };
-std::vector<Rectangle> obstacles;
+std::vector<Tile> obstacles;
 class World {
   public:
     bool LoadCSVLevel() {
@@ -31,14 +40,27 @@ class World {
                 // get cell type
                 int tileType = std::stoi(cell);
                 switch (tileType) {
-                case wall:
+                case wall: {
                     Rectangle rect;
                     rect.x = currentCol * 64;
                     rect.y = currentRow * 64;
                     rect.width = 64;
                     rect.height = 64;
-                    obstacles.push_back(rect);
+                    Tile tile(rect, BLACK, wall);
+                    obstacles.push_back(tile);
+                    break;
                 }
+                case placeholder:
+                    Rectangle rect;
+                    rect.x = currentCol * 64;
+                    rect.y = currentRow * 64;
+                    rect.width = 64;
+                    rect.height = 64;
+                    Tile tile(rect, GREEN, placeholder);
+                    obstacles.push_back(tile);
+                    break;
+                }
+
                 currentCol++;
             }
             currentRow++;
@@ -70,8 +92,13 @@ class MovementComponent {
         velocity.x += acceleration.x * dt;
         velocity.y += acceleration.y * dt;
 
-        velocity.x -= velocity.x * friction * dt;
-        velocity.y -= velocity.y * friction * dt;
+        // velocity.x -= velocity.x * friction * dt;
+        // velocity.y -= velocity.y * friction * dt;
+        // its tied to fps somehow
+        //
+        float damping = 1.0f / (1.0f + (friction * dt));
+        velocity.x *= damping;
+        velocity.y *= damping;
     }
 
     void MoveAndCollide() {}
@@ -96,18 +123,21 @@ class Player {
         float dt = GetFrameTime();
         direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
         direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
-        MovementComponent.UpdateVelocity(direction, 7000);
+        MovementComponent.UpdateVelocity(direction, 6000);
 
         playerPosition.x += MovementComponent.velocity.x * dt;
         playerRect.x = playerPosition.x;
         for (const auto &obstacle : obstacles) {
-            if (Collide(obstacle)) {
+            if (Collide(obstacle.tileRec)) {
+                if (obstacle.type != wall) {
+                    break;
+                }
                 if (MovementComponent.velocity.x > 0) {
-                    playerPosition.x = obstacle.x - playerRect.width;
+                    playerPosition.x = obstacle.tileRec.x - playerRect.width;
                     playerRect.x = playerPosition.x;
                     break;
                 } else if (MovementComponent.velocity.x < 0) {
-                    playerPosition.x = obstacle.x + obstacle.width;
+                    playerPosition.x = obstacle.tileRec.x + obstacle.tileRec.width;
                     playerRect.x = playerPosition.x;
                     break;
                 }
@@ -117,13 +147,16 @@ class Player {
         playerPosition.y += MovementComponent.velocity.y * dt;
         playerRect.y = playerPosition.y;
         for (const auto &obstacle : obstacles) {
-            if (Collide(obstacle)) {
+            if (Collide(obstacle.tileRec)) {
+                if (obstacle.type != wall) {
+                    break;
+                }
                 if (MovementComponent.velocity.y > 0) {
-                    playerPosition.y = obstacle.y - playerRect.height;
+                    playerPosition.y = obstacle.tileRec.y - playerRect.height;
                     playerRect.y = playerPosition.y;
                     break;
                 } else if (MovementComponent.velocity.y < 0) {
-                    playerPosition.y = obstacle.y + obstacle.height;
+                    playerPosition.y = obstacle.tileRec.y + obstacle.tileRec.height;
                     playerRect.y = playerPosition.y;
                     break;
                 }
@@ -131,6 +164,7 @@ class Player {
         }
     };
 };
+
 int main() {
     InitWindow(800, 600, "Slick Game");
     SetTargetFPS(60);
@@ -144,7 +178,7 @@ int main() {
     camera.target = Vector2{player.playerPosition.x + 20.f, player.playerPosition.y + 20.f};
     camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
     camera.zoom = 1.0f;
-
+    bool showMessageBox = false;
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
         player.player_update();
@@ -152,19 +186,30 @@ int main() {
 
         BeginDrawing();
         {
-            ClearBackground(RAYWHITE);
-            
+            ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
+
             BeginMode2D(camera);
             {
                 DrawText("Hello!", 40, 180, 30, BLACK);
-                DrawRectangleRec(player.playerRect, player.color);
                 for (int i = 0; i < obstacles.size(); i++) {
-                    DrawRectangleRec(obstacles[i], BLACK);
+                    DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
                 }
+                DrawRectangleRec(player.playerRect, player.color);
             }
             EndMode2D();
+
+            if (GuiButton(Rectangle{24, 24, 120, 30}, "#191#Show Message"))
+                showMessageBox = true;
+
+            if (showMessageBox) {
+                int result = GuiMessageBox(Rectangle{85, 70, 250, 100}, "#191#Message Box",
+                                           "Hi! This is a message!", "Nice;Cool");
+
+                if (result >= 0)
+                    showMessageBox = false;
+            }
         }
-        
+
         EndDrawing();
     }
 
