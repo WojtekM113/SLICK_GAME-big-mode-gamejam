@@ -3,6 +3,8 @@ build/
 SLICK_GAME.exe
 *.o
 *.obj
-
+.clang-format
 .cache/
 .zed
+*.ilk
+*.pdb

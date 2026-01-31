@@ -14,8 +14,8 @@ target_sources(SLICK_GAME
       src/main.cpp
 )
 
-target_include_directories(SLICK_GAME 
-    PRIVATE 
+target_include_directories(SLICK_GAME
+    PRIVATE
     "${CMAKE_SOURCE_DIR}/vendor/raylib-5.5/src"
 )
 
