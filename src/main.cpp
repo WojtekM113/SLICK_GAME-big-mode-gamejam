@@ -11,6 +11,28 @@ enum Environment { wall = 1, box = 2, placeholder = 3 };
 enum GameStates { main_menu = 0, game = 1, pause_menu = 2, settings = 3, game_over = 4 };
 static GameStates gamestate = main_menu;
 
+class GameAssets {
+  public:
+    std::vector<Texture2D> textures;
+
+    Texture2D crosshair;
+    Texture2D player;
+    Texture2D wall1;
+    Texture2D wall2;
+    Texture2D ground;
+
+    void LoadTextures() {
+        crosshair = LoadTexture("Textures/crosshair.png");
+        textures.push_back(crosshair);
+    }
+
+    void UnloadTextures() {
+        for (auto const texture : textures) {
+            UnloadTexture(texture);
+        }
+        textures.clear();
+    };
+};
 struct Tile {
     Rectangle tileRec;
     Color tileCol;
@@ -122,12 +144,8 @@ class Player {
             return false;
         }
     };
-    void player_update() {
+    void AfterMovementCollision() {
         float dt = GetFrameTime();
-        direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
-        direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
-        MovementComponent.UpdateVelocity(direction, 6000);
-
         playerPosition.x += MovementComponent.velocity.x * dt;
         playerRect.x = playerPosition.x;
         for (const auto &obstacle : obstacles) {
@@ -165,9 +183,32 @@ class Player {
                 }
             }
         }
+    }
+
+    void player_update() {
+        direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
+        direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
+        MovementComponent.UpdateVelocity(direction, 6000);
+        AfterMovementCollision();
     };
 };
+class Crosshair {
+  public:
+    Vector2 crosshairPosition;
+    Rectangle crosshairSourceRec{0.0f, 0.0f, 33, 33};
+    Rectangle crosshairDestRec;
+    float crosshairSize = 64;
+    float offset = crosshairSize / 2.f;
 
+    void UpdateCrosshairPos() {
+        crosshairPosition = GetMousePosition();
+        crosshairDestRec = {crosshairPosition.x - offset, crosshairPosition.y - offset,
+                            crosshairSize, crosshairSize};
+    }
+    void RenderCrosshair(const Texture2D &crosshairTexture) {
+        DrawTexturePro(crosshairTexture, crosshairSourceRec, crosshairDestRec, {0, 0}, 0, RAYWHITE);
+    }
+};
 void ReadInput() {
     if (IsKeyPressed(KEY_P)) {
         if (gamestate == game) {
@@ -180,10 +221,15 @@ void ReadInput() {
         gamestate = main_menu;
     }
 }
-
 int main() {
     InitWindow(800, 600, "Slick Game");
     SetTargetFPS(60);
+    GameAssets assets;
+    assets.LoadTextures();
+    // Load textures
+
+    //
+
     World world;
     world.LoadCSVLevel();
 
@@ -196,8 +242,11 @@ int main() {
     camera.zoom = 1.0f;
     bool startGame = false;
     bool game_pause = false;
+    Crosshair crosshair;
+
     while (!WindowShouldClose()) {
         ReadInput();
+        crosshair.UpdateCrosshairPos();
 
         switch (gamestate) {
         case game: {
@@ -215,17 +264,6 @@ int main() {
         BeginDrawing();
         ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
         switch (gamestate) {
-        case game: {
-            BeginMode2D(camera);
-            {
-                for (int i = 0; i < obstacles.size(); i++) {
-                    DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
-                }
-                DrawRectangleRec(player.playerRect, player.color);
-            }
-            EndMode2D();
-            break;
-        }
         case main_menu: {
             if (GuiButton(Rectangle{(GetScreenWidth() / 2.f) - 120 / 2.f, 24, 120, 30},
                           "#191#Show Message")) {
@@ -238,6 +276,8 @@ int main() {
             break;
         }
         case pause_menu: {
+        }
+        case game: {
             BeginMode2D(camera);
             {
                 for (int i = 0; i < obstacles.size(); i++) {
@@ -246,6 +286,7 @@ int main() {
                 DrawRectangleRec(player.playerRect, player.color);
             }
             EndMode2D();
+            crosshair.RenderCrosshair(assets.crosshair);
             break;
         }
         case game_over: {
@@ -254,6 +295,7 @@ int main() {
         };
         EndDrawing();
     };
+    assets.UnloadTextures();
     CloseWindow();
     return 0;
 }
