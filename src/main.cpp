@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "raymath.h"
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -7,19 +8,105 @@
 #include <vector>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+class MovementComponent {
+
+  public:
+    Vector2 velocity = {0.0};
+    float fricition = 12.f;
+    bool applyFricition = true;
+    Vector2 currentAcceleration;
+    // void UpdateVelocity(Vector2 moveDirection, float speed, float friction = 12.f) {
+
+    void SetVelocity(Vector2 moveDirection, const float speed) {
+        // float dt = GetFrameTime();
+        // float magnitude = Vector2Length(moveDirection);
+        // if (magnitude > 1) {
+        //     float inversion = 1 / magnitude;
+        //     moveDirection.x *= inversion;
+        //     moveDirection.y *= inversion;
+        // }
+        // velocity.x = moveDirection.x * speed;
+        // velocity.y = moveDirection.y * speed;
+
+        Vector2 normalizedDir = Vector2Normalize(moveDirection);
+
+        // 2. Mnożymy znormalizowany kierunek przez stałą prędkość
+        velocity.x = normalizedDir.x * speed;
+        velocity.y = normalizedDir.y * speed;
+    }
+
+    void Accelerate(Vector2 accelerationDir, float speed) {
+        float dt = GetFrameTime();
+        currentAcceleration.x = accelerationDir.x * speed;
+        currentAcceleration.y = accelerationDir.y * speed;
+
+        velocity.x += currentAcceleration.x * dt;
+        velocity.y += currentAcceleration.y * dt;
+    }
+
+    // velocity.x -= velocity.x * friction * dt;
+    // velocity.y -= velocity.y * friction * dt;
+    // its tied to fps somehow
+    //
+    void ApplyFriction(const float friction) {
+        float dt = GetFrameTime();
+        float damping = 1.0f / (1.0f + (friction * dt));
+        velocity.x *= damping;
+        velocity.y *= damping;
+    }
+    // }
+};
+// void MoveAndCollide() {}
 enum Environment { wall = 1, box = 2, placeholder = 3 };
 enum GameStates { main_menu = 0, game = 1, pause_menu = 2, settings = 3, game_over = 4 };
 static GameStates gamestate = main_menu;
+
+class Bullet {
+  public:
+    MovementComponent movementComp;
+    Vector2 bulletPosition{0, 0};
+    Vector2 direction;
+    float speed;
+
+    Bullet(Vector2 bulletPosition, Vector2 direction, float speed) {
+        this->bulletPosition = bulletPosition;
+        this->direction = direction;
+        this->speed = speed;
+        movementComp.SetVelocity(direction, speed);
+        movementComp.fricition = 0.0f;
+    }
+
+    void BulletUpdate() {
+        float dt = GetFrameTime();
+        bulletPosition.x += movementComp.velocity.x * dt;
+        bulletPosition.y += movementComp.velocity.y * dt;
+    }
+
+    void Render() { DrawCircleV(bulletPosition, 5.f, RED); }
+};
+
+std::vector<Bullet> bullets;
+class Actions {
+  public:
+    static void Shoot(Vector2 position, const Vector2 direction, const float speed, const float,
+                      Vector2 addedVelocity) {
+
+        Bullet bullet(position, direction, speed);
+        bullet.movementComp.velocity.x += addedVelocity.x;
+        bullet.movementComp.velocity.y += addedVelocity.y;
+        bullets.push_back(bullet);
+    }
+};
 
 class GameAssets {
   public:
     std::vector<Texture2D> textures;
 
     Texture2D crosshair;
-    Texture2D player;
-    Texture2D wall1;
-    Texture2D wall2;
-    Texture2D ground;
+    // Texture2D player;
+    // Texture2D wall1;
+    // Texture2D wall2;
+    // Texture2D ground;
 
     void LoadTextures() {
         crosshair = LoadTexture("Textures/crosshair.png");
@@ -93,41 +180,6 @@ class World {
     }
 };
 
-class MovementComponent {
-  public:
-    Vector2 velocity = {0.0};
-    Vector2 lastPosition{0, 0};
-    void UpdateVelocity(Vector2 moveDirection, float speed, float friction = 12.f) {
-        Vector2 acceleration;
-
-        float magnitude = Vector2Length(moveDirection);
-
-        if (magnitude > 1) {
-            float inversion = 1 / magnitude;
-            moveDirection.x *= inversion;
-            moveDirection.y *= inversion;
-        }
-
-        float dt = GetFrameTime();
-
-        acceleration.x = moveDirection.x * speed;
-        acceleration.y = moveDirection.y * speed;
-
-        velocity.x += acceleration.x * dt;
-        velocity.y += acceleration.y * dt;
-
-        // velocity.x -= velocity.x * friction * dt;
-        // velocity.y -= velocity.y * friction * dt;
-        // its tied to fps somehow
-        //
-        float damping = 1.0f / (1.0f + (friction * dt));
-        velocity.x *= damping;
-        velocity.y *= damping;
-    }
-
-    void MoveAndCollide() {}
-};
-
 class Player {
   public:
     Vector2 playerPosition{160, 121};
@@ -136,6 +188,7 @@ class Player {
     MovementComponent MovementComponent;
     Color color = RED;
     int playerHealth = 3;
+    float playerSpeed = 5000;
     bool Collide(const Rectangle &rect) {
         if (playerRect.x < rect.x + rect.width && playerRect.x + playerRect.width > rect.x &&
             playerRect.y < rect.y + rect.height && playerRect.y + playerRect.height > rect.y) {
@@ -188,10 +241,12 @@ class Player {
     void player_update() {
         direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
         direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
-        MovementComponent.UpdateVelocity(direction, 6000);
+        MovementComponent.Accelerate(direction, 5000);
+        MovementComponent.ApplyFriction(12);
         AfterMovementCollision();
     };
 };
+
 class Crosshair {
   public:
     Vector2 crosshairPosition;
@@ -237,7 +292,7 @@ int main() {
     Vector2 lastPosition{0, 0};
 
     Camera2D camera = {0};
-    camera.target = Vector2{player.playerPosition.x + 20.f, player.playerPosition.y + 20.f};
+    camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
     camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
     camera.zoom = 1.0f;
     bool startGame = false;
@@ -247,13 +302,31 @@ int main() {
     while (!WindowShouldClose()) {
         ReadInput();
         crosshair.UpdateCrosshairPos();
-
         switch (gamestate) {
         case game: {
             float dt = GetFrameTime();
             player.player_update();
-            camera.target = Vector2{player.playerPosition.x + 20, player.playerPosition.y + 20};
+            camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
+
+            for (auto &bullet : bullets) {
+                bullet.BulletUpdate();
+            }
             game_pause = false;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+
+                Vector2 targetWorldPosition =
+                    GetScreenToWorld2D(crosshair.crosshairPosition, camera);
+
+                Vector2 shoot_dir =
+                    Vector2Subtract(targetWorldPosition, {player.playerPosition.x + 32.0f,
+                                                          player.playerPosition.y + 32.f});
+
+                Vector2 normalized_dir = Vector2Normalize(shoot_dir);
+
+                Actions::Shoot({player.playerPosition.x + 32, player.playerPosition.y + 32},
+                               normalized_dir, 1000, 500, player.MovementComponent.velocity);
+                // bullet->movementComp.velocity += player.MovementComponent.velocity;
+            }
             break;
         }
         case pause_menu: {
@@ -284,6 +357,13 @@ int main() {
                     DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
                 }
                 DrawRectangleRec(player.playerRect, player.color);
+                
+                for (auto &bullet : bullets) {
+                    bullet.Render();
+                }
+                Vector2 debugCenter{player.playerPosition.x + 32, player.playerPosition.y + 32};
+                Vector2 mouseWorldPos = GetScreenToWorld2D(crosshair.crosshairPosition, camera);
+                DrawLineV(debugCenter, mouseWorldPos, RED);
             }
             EndMode2D();
             crosshair.RenderCrosshair(assets.crosshair);
