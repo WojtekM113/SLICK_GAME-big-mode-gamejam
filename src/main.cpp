@@ -15,7 +15,8 @@ class MovementComponent {
     float fricition = 12.f;
     bool applyFricition = true;
     Vector2 currentAcceleration;
-    // void UpdateVelocity(Vector2 moveDirection, float speed, float friction = 12.f) {
+    // void UpdateVelocity(Vector2 moveDirection, float speed, float friction
+    // = 12.f) {
 
     void SetVelocity(Vector2 moveDirection, const float speed) {
         // float dt = GetFrameTime();
@@ -56,7 +57,7 @@ class MovementComponent {
     }
     // }
 };
-// void MoveAndCollide() {}
+
 enum Environment { wall = 1, box = 2, placeholder = 3 };
 enum GameStates { main_menu = 0, game = 1, pause_menu = 2, settings = 3, game_over = 4 };
 static GameStates gamestate = main_menu;
@@ -120,6 +121,7 @@ class GameAssets {
         textures.clear();
     };
 };
+
 struct Tile {
     Rectangle tileRec;
     Color tileCol;
@@ -130,65 +132,64 @@ struct Tile {
         this->type = type;
     }
 };
-std::vector<Tile> obstacles;
-class World {
-  public:
-    bool LoadCSVLevel() {
-        std::ifstream file;
-        file.open("./LdkLevels/test/simplified/Level_0/IntGrid.csv");
-        if (!file.is_open()) {
-            std::cerr << "File couldn't be opened, ldtklevel";
-            return false;
-        }
-        std::string currentLine;
-        int currentRow = 0;
-        while (std::getline(file, currentLine)) {
-            std::stringstream ss(currentLine);
-            std::string cell;
-            int currentCol = 0;
-            // break cells to one tile with ','
-            while (std::getline(ss, cell, ',')) {
-                // get cell type
-                int tileType = std::stoi(cell);
-                switch (tileType) {
-                case wall: {
-                    Rectangle rect;
-                    rect.x = currentCol * 64;
-                    rect.y = currentRow * 64;
-                    rect.width = 64;
-                    rect.height = 64;
-                    Tile tile(rect, BLACK, wall);
-                    obstacles.push_back(tile);
-                    break;
-                }
-                case placeholder:
-                    Rectangle rect;
-                    rect.x = currentCol * 64;
-                    rect.y = currentRow * 64;
-                    rect.width = 64;
-                    rect.height = 64;
-                    Tile tile(rect, GREEN, placeholder);
-                    obstacles.push_back(tile);
-                    break;
-                }
 
-                currentCol++;
-            }
-            currentRow++;
-        }
-        return true;
+std::vector<Tile> obstacles;
+
+bool LoadCSVLevel() {
+    std::ifstream file;
+    file.open("./LdkLevels/test/simplified/Level_0/IntGrid.csv");
+    if (!file.is_open()) {
+        std::cerr << "File couldn't be opened, ldtklevel";
+        return false;
     }
-};
+    std::string currentLine;
+    int currentRow = 0;
+    while (std::getline(file, currentLine)) {
+        std::stringstream ss(currentLine);
+        std::string cell;
+        int currentCol = 0;
+        while (std::getline(ss, cell, ',')) {
+            int tileType = std::stoi(cell);
+            switch (tileType) {
+            case wall: {
+                Rectangle rect;
+                rect.x = currentCol * 124;
+                rect.y = currentRow * 124;
+                rect.width = 124;
+                rect.height = 124;
+                Tile tile(rect, BLACK, wall);
+                obstacles.push_back(tile);
+                break;
+            }
+            case placeholder:
+                Rectangle rect;
+                rect.x = currentCol * 124;
+                rect.y = currentRow * 124;
+                rect.width = 124;
+                rect.height = 124;
+                Tile tile(rect, GREEN, placeholder);
+                obstacles.push_back(tile);
+                break;
+            }
+            currentCol++;
+        }
+        currentRow++;
+    }
+    return true;
+}
 
 class Player {
   public:
+    std::vector<Rectangle> tail;
+
     Vector2 playerPosition{160, 121};
     Vector2 direction{0, 0};
     Rectangle playerRect{playerPosition.x, playerPosition.y, 64, 64};
     MovementComponent MovementComponent;
     Color color = RED;
     int playerHealth = 3;
-    float playerSpeed = 5000;
+    float playerSpeed = 6000;
+
     bool Collide(const Rectangle &rect) {
         if (playerRect.x < rect.x + rect.width && playerRect.x + playerRect.width > rect.x &&
             playerRect.y < rect.y + rect.height && playerRect.y + playerRect.height > rect.y) {
@@ -241,9 +242,21 @@ class Player {
     void player_update() {
         direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
         direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
-        MovementComponent.Accelerate(direction, 5000);
-        MovementComponent.ApplyFriction(12);
+        // MovementComponent.Accelerate(direction, 5000);
+        MovementComponent.ApplyFriction(0);
         AfterMovementCollision();
+        for (int i = 0; i < tail.size(); i++) {
+            Vector2 targetPosition;
+            if (i == 0) {
+                targetPosition.x = playerPosition.x;
+                targetPosition.y = playerPosition.y;
+            } else {
+                targetPosition.x = tail[i - 1].x;
+                targetPosition.y = tail[i - 1].y;
+            }
+            tail[i].x += (targetPosition.x - tail[i].x) * 0.1f;
+            tail[i].y += (targetPosition.y - tail[i].y) * 0.1f;
+        }
     };
 };
 
@@ -257,13 +270,13 @@ class Crosshair {
 
     void UpdateCrosshairPos() {
         crosshairPosition = GetMousePosition();
-        crosshairDestRec = {crosshairPosition.x - offset, crosshairPosition.y - offset,
-                            crosshairSize, crosshairSize};
+        crosshairDestRec = {crosshairPosition.x - offset, crosshairPosition.y - offset, crosshairSize, crosshairSize};
     }
     void RenderCrosshair(const Texture2D &crosshairTexture) {
         DrawTexturePro(crosshairTexture, crosshairSourceRec, crosshairDestRec, {0, 0}, 0, RAYWHITE);
     }
 };
+
 void ReadInput() {
     if (IsKeyPressed(KEY_P)) {
         if (gamestate == game) {
@@ -276,20 +289,21 @@ void ReadInput() {
         gamestate = main_menu;
     }
 }
+
+Vector2 MouseWorldDir(Vector2 crosshairPos, Camera2D camera, Vector2 origin) {
+    Vector2 mouseWorldPos = GetScreenToWorld2D(crosshairPos, camera);
+    Vector2 diection = Vector2Subtract(mouseWorldPos, origin);
+    Vector2 normalizedDir = Vector2Normalize(diection);
+    return normalizedDir;
+}
 int main() {
     InitWindow(800, 600, "Slick Game");
     SetTargetFPS(60);
     GameAssets assets;
     assets.LoadTextures();
-    // Load textures
-
-    //
-
-    World world;
-    world.LoadCSVLevel();
+    LoadCSVLevel();
 
     Player player;
-    Vector2 lastPosition{0, 0};
 
     Camera2D camera = {0};
     camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
@@ -299,73 +313,94 @@ int main() {
     bool game_pause = false;
     Crosshair crosshair;
 
+    Rectangle tRect{player.playerPosition.x, player.playerPosition.y, 64, 64};
+    player.tail.push_back(tRect);
+    Rectangle tRect1{player.playerPosition.x, player.playerPosition.y, 64, 64};
+    Rectangle tRect2{player.playerPosition.x, player.playerPosition.y, 64, 64};
+    player.tail.push_back(tRect1);
+    player.tail.push_back(tRect2);
     while (!WindowShouldClose()) {
         ReadInput();
         crosshair.UpdateCrosshairPos();
         switch (gamestate) {
         case game: {
-            float dt = GetFrameTime();
-            player.player_update();
-            camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
 
+            float dt = GetFrameTime();
+            Vector2 playerOffset{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
+            camera.target = playerOffset;
+
+            Vector2 aimDir = MouseWorldDir(crosshair.crosshairPosition, camera, playerOffset);
+            // camera.zoom = 1 -   player.MovementComponent.velocity.x;
+            // float dot = Vector2DotProduct(aimDir, Vector2Normalize(player.MovementComponent.velocity));
+            //
+            float currentSpeed = Vector2Length(player.MovementComponent.velocity);
+            float calculateZoom = 1.0 - (currentSpeed / 10000.f);
+            if (calculateZoom <= 0.6) {
+                calculateZoom = 0.6f;
+            }
+            camera.zoom = Lerp(camera.zoom, calculateZoom, 0.05f);
+            Vector2 currentMoveDirection = Vector2Normalize(player.MovementComponent.velocity);
+            float turnSpeed = 0.05f;
+            float currentTraction = turnSpeed / (1.0f + (currentSpeed * 0.005f));
+
+            Vector2 dir = Vector2Lerp(currentMoveDirection, aimDir, currentTraction);
+            player.MovementComponent.velocity = Vector2Scale(dir, currentSpeed);
+
+            player.MovementComponent.Accelerate(aimDir, 300);
+
+            player.player_update();
             for (auto &bullet : bullets) {
                 bullet.BulletUpdate();
             }
-            game_pause = false;
+
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 
-                Vector2 targetWorldPosition =
-                    GetScreenToWorld2D(crosshair.crosshairPosition, camera);
-
-                Vector2 shoot_dir =
-                    Vector2Subtract(targetWorldPosition, {player.playerPosition.x + 32.0f,
-                                                          player.playerPosition.y + 32.f});
-
-                Vector2 normalized_dir = Vector2Normalize(shoot_dir);
-
-                Actions::Shoot({player.playerPosition.x + 32, player.playerPosition.y + 32},
-                               normalized_dir, 1000, 500, player.MovementComponent.velocity);
-                // bullet->movementComp.velocity += player.MovementComponent.velocity;
+                Actions::Shoot(playerOffset, aimDir, 1000, 500, player.MovementComponent.velocity);
             }
             break;
         }
         case pause_menu: {
             break;
         }
-        }
+        };
 
         BeginDrawing();
         ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
         switch (gamestate) {
         case main_menu: {
-            if (GuiButton(Rectangle{(GetScreenWidth() / 2.f) - 120 / 2.f, 24, 120, 30},
-                          "#191#Show Message")) {
-                startGame = true;
-            }
-            if (startGame) {
+            if (GuiButton(Rectangle{(GetScreenWidth() / 2.f) - 120 / 2.f, 24, 120, 30}, "#191#Show Message")) {
                 gamestate = game;
             }
             startGame = false;
             break;
         }
         case pause_menu: {
+            // Just skips update loop and renders game
+            // in the background
         }
         case game: {
             BeginMode2D(camera);
             {
+
                 for (int i = 0; i < obstacles.size(); i++) {
                     DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
                 }
+
                 DrawRectangleRec(player.playerRect, player.color);
-                
+                for (const auto &tailPiece : player.tail) {
+                    DrawRectangleRec(tailPiece, RED);
+                }
                 for (auto &bullet : bullets) {
                     bullet.Render();
                 }
+
                 Vector2 debugCenter{player.playerPosition.x + 32, player.playerPosition.y + 32};
                 Vector2 mouseWorldPos = GetScreenToWorld2D(crosshair.crosshairPosition, camera);
                 DrawLineV(debugCenter, mouseWorldPos, RED);
             }
             EndMode2D();
+            Rectangle textRect{0, 0, 125, 60};
+            DrawText(TextFormat("Velocity: %.2f", Vector2Length(player.MovementComponent.velocity)), 0, 0, 32, GREEN);
             crosshair.RenderCrosshair(assets.crosshair);
             break;
         }
