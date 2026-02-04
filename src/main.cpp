@@ -153,20 +153,20 @@ bool LoadCSVLevel() {
             switch (tileType) {
             case wall: {
                 Rectangle rect;
-                rect.x = currentCol * 124;
-                rect.y = currentRow * 124;
-                rect.width = 124;
-                rect.height = 124;
+                rect.x = currentCol * 64;
+                rect.y = currentRow * 64;
+                rect.width = 64;
+                rect.height = 64;
                 Tile tile(rect, BLACK, wall);
                 obstacles.push_back(tile);
                 break;
             }
             case placeholder:
                 Rectangle rect;
-                rect.x = currentCol * 124;
-                rect.y = currentRow * 124;
-                rect.width = 124;
-                rect.height = 124;
+                rect.x = currentCol * 64;
+                rect.y = currentRow * 64;
+                rect.width = 64;
+                rect.height = 64;
                 Tile tile(rect, GREEN, placeholder);
                 obstacles.push_back(tile);
                 break;
@@ -243,8 +243,9 @@ class Player {
         direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
         direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
         // MovementComponent.Accelerate(direction, 5000);
-        MovementComponent.ApplyFriction(0);
+        MovementComponent.ApplyFriction(0.2f);
         AfterMovementCollision();
+
         for (int i = 0; i < tail.size(); i++) {
             Vector2 targetPosition;
             if (i == 0) {
@@ -304,11 +305,11 @@ int main() {
     LoadCSVLevel();
 
     Player player;
-
+    float turnSpeed = 0.05f;
     Camera2D camera = {0};
     camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
     camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
-    camera.zoom = 1.0f;
+    camera.zoom = 2.0f;
     bool startGame = false;
     bool game_pause = false;
     Crosshair crosshair;
@@ -330,23 +331,32 @@ int main() {
             camera.target = playerOffset;
 
             Vector2 aimDir = MouseWorldDir(crosshair.crosshairPosition, camera, playerOffset);
-            // camera.zoom = 1 -   player.MovementComponent.velocity.x;
-            // float dot = Vector2DotProduct(aimDir, Vector2Normalize(player.MovementComponent.velocity));
-            //
+
             float currentSpeed = Vector2Length(player.MovementComponent.velocity);
-            float calculateZoom = 1.0 - (currentSpeed / 10000.f);
-            if (calculateZoom <= 0.6) {
-                calculateZoom = 0.6f;
+            float calculateZoom = 1.0 - (currentSpeed / 2000.f);
+            if (calculateZoom <= 0.05) {
+                calculateZoom = 0.05f;
             }
+
             camera.zoom = Lerp(camera.zoom, calculateZoom, 0.05f);
             Vector2 currentMoveDirection = Vector2Normalize(player.MovementComponent.velocity);
-            float turnSpeed = 0.05f;
-            float currentTraction = turnSpeed / (1.0f + (currentSpeed * 0.005f));
+            float dot = Vector2DotProduct(currentMoveDirection, aimDir);
+
+            float slideSpeed = 0.05f;
+            if (dot < 0.7f) {
+                turnSpeed = 0.02f;
+                slideSpeed = 0.000001f;
+                player.MovementComponent.ApplyFriction(0.0f);
+            } else {
+                turnSpeed = 0.15f;
+                slideSpeed = 0.0005f;
+            }
+
+            float currentTraction = turnSpeed / (1.0f + (currentSpeed * slideSpeed));
 
             Vector2 dir = Vector2Lerp(currentMoveDirection, aimDir, currentTraction);
             player.MovementComponent.velocity = Vector2Scale(dir, currentSpeed);
-
-            player.MovementComponent.Accelerate(aimDir, 300);
+            player.MovementComponent.Accelerate(aimDir, 700);
 
             player.player_update();
             for (auto &bullet : bullets) {
@@ -354,7 +364,6 @@ int main() {
             }
 
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-
                 Actions::Shoot(playerOffset, aimDir, 1000, 500, player.MovementComponent.velocity);
             }
             break;
@@ -381,7 +390,6 @@ int main() {
         case game: {
             BeginMode2D(camera);
             {
-
                 for (int i = 0; i < obstacles.size(); i++) {
                     DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
                 }
@@ -390,6 +398,7 @@ int main() {
                 for (const auto &tailPiece : player.tail) {
                     DrawRectangleRec(tailPiece, RED);
                 }
+
                 for (auto &bullet : bullets) {
                     bullet.Render();
                 }
