@@ -8,6 +8,7 @@
 #include <vector>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+
 class MovementComponent {
 
   public:
@@ -15,23 +16,9 @@ class MovementComponent {
     float fricition = 12.f;
     bool applyFricition = true;
     Vector2 currentAcceleration;
-    // void UpdateVelocity(Vector2 moveDirection, float speed, float friction
-    // = 12.f) {
 
     void SetVelocity(Vector2 moveDirection, const float speed) {
-        // float dt = GetFrameTime();
-        // float magnitude = Vector2Length(moveDirection);
-        // if (magnitude > 1) {
-        //     float inversion = 1 / magnitude;
-        //     moveDirection.x *= inversion;
-        //     moveDirection.y *= inversion;
-        // }
-        // velocity.x = moveDirection.x * speed;
-        // velocity.y = moveDirection.y * speed;
-
         Vector2 normalizedDir = Vector2Normalize(moveDirection);
-
-        // 2. Mnożymy znormalizowany kierunek przez stałą prędkość
         velocity.x = normalizedDir.x * speed;
         velocity.y = normalizedDir.y * speed;
     }
@@ -45,10 +32,6 @@ class MovementComponent {
         velocity.y += currentAcceleration.y * dt;
     }
 
-    // velocity.x -= velocity.x * friction * dt;
-    // velocity.y -= velocity.y * friction * dt;
-    // its tied to fps somehow
-    //
     void ApplyFriction(const float friction) {
         float dt = GetFrameTime();
         float damping = 1.0f / (1.0f + (friction * dt));
@@ -58,7 +41,7 @@ class MovementComponent {
     // }
 };
 
-enum Environment { wall = 1, box = 2, placeholder = 3 };
+enum Environment { air = 0, wall = 1, box = 2, placeholder = 3 };
 enum GameStates { main_menu = 0, game = 1, pause_menu = 2, settings = 3, game_over = 4 };
 static GameStates gamestate = main_menu;
 
@@ -134,10 +117,18 @@ struct Tile {
 };
 
 std::vector<Tile> obstacles;
-
+Tile CreateTile(int currentCol, int currentRow, Color color, Environment type) {
+    Rectangle rect;
+    rect.x = currentCol * 64;
+    rect.y = currentRow * 64;
+    rect.width = 64;
+    rect.height = 64;
+    Tile tile(rect, color, type);
+    return tile;
+}
 bool LoadCSVLevel() {
     std::ifstream file;
-    file.open("./LdkLevels/test/simplified/Level_0/IntGrid.csv");
+    file.open("./LdkLevels/lvl512/simplified/Level_0/IntGrid.csv");
     if (!file.is_open()) {
         std::cerr << "File couldn't be opened, ldtklevel";
         return false;
@@ -152,25 +143,22 @@ bool LoadCSVLevel() {
             int tileType = std::stoi(cell);
             switch (tileType) {
             case wall: {
-                Rectangle rect;
-                rect.x = currentCol * 64;
-                rect.y = currentRow * 64;
-                rect.width = 64;
-                rect.height = 64;
-                Tile tile(rect, BLACK, wall);
-                obstacles.push_back(tile);
+                obstacles.push_back(CreateTile(currentCol, currentRow, BLACK, wall));
                 break;
             }
-            case placeholder:
-                Rectangle rect;
-                rect.x = currentCol * 64;
-                rect.y = currentRow * 64;
-                rect.width = 64;
-                rect.height = 64;
-                Tile tile(rect, GREEN, placeholder);
-                obstacles.push_back(tile);
+            case placeholder: {
+                obstacles.push_back(CreateTile(currentCol, currentRow, GREEN, placeholder));
                 break;
             }
+            case box: {
+                obstacles.push_back(CreateTile(currentCol, currentRow, BLUE, box));
+                break;
+            }
+            case air: {
+                obstacles.push_back(CreateTile(currentCol, currentRow, RAYWHITE, air));
+                break;
+            }
+            };
             currentCol++;
         }
         currentRow++;
@@ -190,6 +178,8 @@ class Player {
     int playerHealth = 3;
     float playerSpeed = 6000;
 
+    float timer = 0.0f;
+    float maxSeconds = 3.5f;
     bool Collide(const Rectangle &rect) {
         if (playerRect.x < rect.x + rect.width && playerRect.x + playerRect.width > rect.x &&
             playerRect.y < rect.y + rect.height && playerRect.y + playerRect.height > rect.y) {
@@ -198,43 +188,63 @@ class Player {
             return false;
         }
     };
-    void AfterMovementCollision() {
+
+    void MoveAndCollide() {
         float dt = GetFrameTime();
         playerPosition.x += MovementComponent.velocity.x * dt;
         playerRect.x = playerPosition.x;
-        for (const auto &obstacle : obstacles) {
-            if (Collide(obstacle.tileRec)) {
-                if (obstacle.type != wall) {
-                    break;
+        for (int i = 0; i < obstacles.size(); i++) {
+            if (Collide(obstacles[i].tileRec)) {
+                switch (obstacles[i].type) {
+                case box: {
+                    obstacles[i].type = air;
+                    obstacles[i].tileCol = RAYWHITE;
+                    Rectangle tRect{playerPosition.x, playerPosition.y, 64, 64};
+                    tail.push_back(tRect);
                 }
-                if (MovementComponent.velocity.x > 0) {
-                    playerPosition.x = obstacle.tileRec.x - playerRect.width;
-                    playerRect.x = playerPosition.x;
-                    break;
-                } else if (MovementComponent.velocity.x < 0) {
-                    playerPosition.x = obstacle.tileRec.x + obstacle.tileRec.width;
-                    playerRect.x = playerPosition.x;
-                    break;
+                case wall: {
+                    if (MovementComponent.velocity.x > 0) {
+                        playerPosition.x = obstacles[i].tileRec.x - playerRect.width;
+                        playerRect.x = playerPosition.x;
+                        MovementComponent.velocity.x = 0;
+                        break;
+                    } else if (MovementComponent.velocity.x < 0) {
+                        playerPosition.x = obstacles[i].tileRec.x + obstacles[i].tileRec.width;
+                        playerRect.x = playerPosition.x;
+                        MovementComponent.velocity.x = 0;
+                        break;
+                    }
                 }
+                };
             }
         }
 
         playerPosition.y += MovementComponent.velocity.y * dt;
         playerRect.y = playerPosition.y;
-        for (const auto &obstacle : obstacles) {
-            if (Collide(obstacle.tileRec)) {
-                if (obstacle.type != wall) {
+        for (int i = 0; i < obstacles.size(); i++) {
+            if (Collide(obstacles[i].tileRec)) {
+                switch (obstacles[i].type) {
+                case box: {
+                    obstacles[i].type = air;
+                    obstacles[i].tileCol = RAYWHITE;
+                    Rectangle tRect{playerPosition.x, playerPosition.y, 64, 64};
+                    tail.push_back(tRect);
                     break;
                 }
-                if (MovementComponent.velocity.y > 0) {
-                    playerPosition.y = obstacle.tileRec.y - playerRect.height;
-                    playerRect.y = playerPosition.y;
-                    break;
-                } else if (MovementComponent.velocity.y < 0) {
-                    playerPosition.y = obstacle.tileRec.y + obstacle.tileRec.height;
-                    playerRect.y = playerPosition.y;
-                    break;
+                case wall: {
+                    if (MovementComponent.velocity.y > 0) {
+                        playerPosition.y = obstacles[i].tileRec.y - playerRect.height;
+                        playerRect.y = playerPosition.y;
+                        MovementComponent.velocity.y = 0;
+                        break;
+                    } else if (MovementComponent.velocity.y < 0) {
+                        playerPosition.y = obstacles[i].tileRec.y + obstacles[i].tileRec.height;
+                        playerRect.y = playerPosition.y;
+                        MovementComponent.velocity.y = 0;
+                        break;
+                    }
                 }
+                };
             }
         }
     }
@@ -243,8 +253,8 @@ class Player {
         direction.x = IsKeyDown(KEY_D) - IsKeyDown(KEY_A);
         direction.y = IsKeyDown(KEY_S) - IsKeyDown(KEY_W);
         // MovementComponent.Accelerate(direction, 5000);
-        MovementComponent.ApplyFriction(0.2f);
-        AfterMovementCollision();
+        MovementComponent.ApplyFriction(0.3f);
+        MoveAndCollide();
 
         for (int i = 0; i < tail.size(); i++) {
             Vector2 targetPosition;
@@ -258,9 +268,20 @@ class Player {
             tail[i].x += (targetPosition.x - tail[i].x) * 0.1f;
             tail[i].y += (targetPosition.y - tail[i].y) * 0.1f;
         }
+
+        timer += GetFrameTime();
+        while (timer >= maxSeconds) {
+            if (!tail.empty()) {
+                tail.pop_back();
+                std::cout << "popped\n";
+                std::cout << GetTime();
+            } else {
+                std::cout << "game over";
+            }
+            timer -= maxSeconds;
+        };
     };
 };
-
 class Crosshair {
   public:
     Vector2 crosshairPosition;
@@ -298,8 +319,10 @@ Vector2 MouseWorldDir(Vector2 crosshairPos, Camera2D camera, Vector2 origin) {
     return normalizedDir;
 }
 int main() {
-    InitWindow(800, 600, "Slick Game");
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(1920, 1080, "Slick Game");
     SetTargetFPS(60);
+
     GameAssets assets;
     assets.LoadTextures();
     LoadCSVLevel();
@@ -314,8 +337,6 @@ int main() {
     bool game_pause = false;
     Crosshair crosshair;
 
-    Rectangle tRect{player.playerPosition.x, player.playerPosition.y, 64, 64};
-    player.tail.push_back(tRect);
     Rectangle tRect1{player.playerPosition.x, player.playerPosition.y, 64, 64};
     Rectangle tRect2{player.playerPosition.x, player.playerPosition.y, 64, 64};
     player.tail.push_back(tRect1);
@@ -333,12 +354,12 @@ int main() {
             Vector2 aimDir = MouseWorldDir(crosshair.crosshairPosition, camera, playerOffset);
 
             float currentSpeed = Vector2Length(player.MovementComponent.velocity);
-            float calculateZoom = 1.0 - (currentSpeed / 2000.f);
-            if (calculateZoom <= 0.05) {
-                calculateZoom = 0.05f;
+            float calculateZoom = 1.0 - (currentSpeed / 1800.f);
+            if (calculateZoom <= 0.12f) {
+                calculateZoom = 0.12f;
             }
 
-            camera.zoom = Lerp(camera.zoom, calculateZoom, 0.05f);
+            camera.zoom = Lerp(camera.zoom, calculateZoom, 0.02f);
             Vector2 currentMoveDirection = Vector2Normalize(player.MovementComponent.velocity);
             float dot = Vector2DotProduct(currentMoveDirection, aimDir);
 
@@ -356,7 +377,7 @@ int main() {
 
             Vector2 dir = Vector2Lerp(currentMoveDirection, aimDir, currentTraction);
             player.MovementComponent.velocity = Vector2Scale(dir, currentSpeed);
-            player.MovementComponent.Accelerate(aimDir, 700);
+            player.MovementComponent.Accelerate(aimDir, 500);
 
             player.player_update();
             for (auto &bullet : bullets) {
@@ -408,9 +429,15 @@ int main() {
                 DrawLineV(debugCenter, mouseWorldPos, RED);
             }
             EndMode2D();
-            Rectangle textRect{0, 0, 125, 60};
-            DrawText(TextFormat("Velocity: %.2f", Vector2Length(player.MovementComponent.velocity)), 0, 0, 32, GREEN);
+
             crosshair.RenderCrosshair(assets.crosshair);
+
+            const char *velocityText = TextFormat("Velocity: %.2f", Vector2Length(player.MovementComponent.velocity));
+            DrawText(velocityText, (GetScreenWidth() * 0.5f) - (MeasureText(velocityText, 50) * 0.5f), 0, 50, GREEN);
+
+            const char *timerText = TextFormat("Time left: %.2f", player.maxSeconds - player.timer);
+            DrawText(timerText, (GetScreenWidth() * 0.5f) - (MeasureText(timerText, 64) * 0.5f), 64, 80, RED);
+
             break;
         }
         case game_over: {
