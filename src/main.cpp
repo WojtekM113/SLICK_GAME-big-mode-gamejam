@@ -42,7 +42,7 @@ class MovementComponent {
 };
 
 enum Environment { air = 0, wall = 1, box = 2, placeholder = 3 };
-enum GameStates { main_menu = 0, game = 1, pause_menu = 2, settings = 3, game_over = 4 };
+enum GameStates { main_menu = 0, game = 1, pause_menu = 2, game_begin = 3, game_over = 4, restart = 5 };
 static GameStates gamestate = main_menu;
 
 class Bullet {
@@ -179,7 +179,7 @@ class Player {
     float playerSpeed = 6000;
 
     float timer = 0.0f;
-    float maxSeconds = 3.5f;
+    float secondsToDestroy = 3.5f;
     bool Collide(const Rectangle &rect) {
         if (playerRect.x < rect.x + rect.width && playerRect.x + playerRect.width > rect.x &&
             playerRect.y < rect.y + rect.height && playerRect.y + playerRect.height > rect.y) {
@@ -270,15 +270,15 @@ class Player {
         }
 
         timer += GetFrameTime();
-        while (timer >= maxSeconds) {
+        while (timer >= secondsToDestroy) {
             if (!tail.empty()) {
                 tail.pop_back();
                 std::cout << "popped\n";
                 std::cout << GetTime();
             } else {
-                std::cout << "game over";
+                gamestate = game_over;
             }
-            timer -= maxSeconds;
+            timer -= secondsToDestroy;
         };
     };
 };
@@ -307,8 +307,13 @@ void ReadInput() {
             gamestate = game;
         }
     }
+
     if (IsKeyPressed(KEY_M)) {
         gamestate = main_menu;
+    }
+
+    if (IsKeyPressed(KEY_GRAVE)) {
+        gamestate = restart;
     }
 }
 
@@ -326,8 +331,8 @@ int main() {
     GameAssets assets;
     assets.LoadTextures();
     LoadCSVLevel();
-
     Player player;
+    Vector2 playerStartPosition{160, 121};
     float turnSpeed = 0.05f;
     Camera2D camera = {0};
     camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
@@ -335,16 +340,47 @@ int main() {
     camera.zoom = 2.0f;
     bool startGame = false;
     bool game_pause = false;
+    bool gameStartPause = true;
     Crosshair crosshair;
 
     Rectangle tRect1{player.playerPosition.x, player.playerPosition.y, 64, 64};
     Rectangle tRect2{player.playerPosition.x, player.playerPosition.y, 64, 64};
     player.tail.push_back(tRect1);
     player.tail.push_back(tRect2);
+    gamestate = game_begin;
     while (!WindowShouldClose()) {
         ReadInput();
         crosshair.UpdateCrosshairPos();
         switch (gamestate) {
+        case restart: {
+            obstacles.clear();
+            player.tail.clear();
+            LoadCSVLevel();
+            player.secondsToDestroy = 3.5;
+            player.playerPosition = playerStartPosition;
+            player.MovementComponent.velocity = {0, 0};
+
+            Rectangle tRect1{player.playerPosition.x, player.playerPosition.y, 64, 64};
+            Rectangle tRect2{player.playerPosition.x, player.playerPosition.y, 64, 64};
+            player.tail.push_back(tRect1);
+            player.tail.push_back(tRect2);
+
+            player.playerRect.x = player.playerPosition.x;
+            player.playerRect.y = player.playerPosition.y;
+
+            camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
+
+            gameStartPause = true;
+            gamestate = game_begin;
+            break;
+        }
+        case game_begin: {
+            player.secondsToDestroy = 4;
+            if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                gamestate = game;
+            }
+            break;
+        }
         case game: {
 
             float dt = GetFrameTime();
@@ -389,11 +425,15 @@ int main() {
             }
             break;
         }
+        case game_over: {
+        }
         case pause_menu: {
             break;
         }
         };
-
+        //////////////////////////////////
+        // DRAW
+        /////////////
         BeginDrawing();
         ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
         switch (gamestate) {
@@ -407,6 +447,9 @@ int main() {
         case pause_menu: {
             // Just skips update loop and renders game
             // in the background
+        }
+        case game_begin : {
+            DrawText(TextFormat("Right click to start"), GetScreenHeight() * 0.5f, GetScreenWidth() * 0.5f, 64, BLACK);
         }
         case game: {
             BeginMode2D(camera);
@@ -435,12 +478,15 @@ int main() {
             const char *velocityText = TextFormat("Velocity: %.2f", Vector2Length(player.MovementComponent.velocity));
             DrawText(velocityText, (GetScreenWidth() * 0.5f) - (MeasureText(velocityText, 50) * 0.5f), 0, 50, GREEN);
 
-            const char *timerText = TextFormat("Time left: %.2f", player.maxSeconds - player.timer);
+            const char *timerText = TextFormat("Time left: %.2f", player.secondsToDestroy - player.timer);
             DrawText(timerText, (GetScreenWidth() * 0.5f) - (MeasureText(timerText, 64) * 0.5f), 64, 80, RED);
 
             break;
         }
         case game_over: {
+            const char *gameOverText = TextFormat("Game over! Try again(press  ~)");
+            DrawText(gameOverText, (GetScreenWidth() * 0.5f) - (MeasureText(gameOverText, 64) * 0.5f),
+                     GetScreenHeight() * 0.5f, 64, RED);
             break;
         }
         };
