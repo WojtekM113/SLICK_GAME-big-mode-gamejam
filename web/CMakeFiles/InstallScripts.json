@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/Dev/SLICK_GAME/web/cmake_install.cmake",
+		"D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/cmake_install.cmake",
+		"D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/cmake_install.cmake",
+		"D:/Dev/SLICK_GAME/web/vendor/raygui-4.0/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

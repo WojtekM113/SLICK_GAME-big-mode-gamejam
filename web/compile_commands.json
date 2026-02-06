@@ -1,0 +1,50 @@
+[
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\em++.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -ID:/Dev/SLICK_GAME/, -ID:/Dev/SLICK_GAME/vendor/raygui-4.0/src -ID:/Dev/SLICK_GAME/vendor/raygui-4.0/../../src -o CMakeFiles\\SLICK_GAME.dir\\src\\main.cpp.o -c D:\\Dev\\SLICK_GAME\\src\\main.cpp",
+  "file": "D:/Dev/SLICK_GAME/src/main.cpp",
+  "output": "D:/Dev/SLICK_GAME/web/CMakeFiles/SLICK_GAME.dir/src/main.cpp.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\raudio.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\raudio.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/raudio.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/raudio.c.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\rcore.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\rcore.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/rcore.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rcore.c.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\rmodels.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\rmodels.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/rmodels.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rmodels.c.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\rshapes.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\rshapes.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/rshapes.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rshapes.c.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\rtext.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\rtext.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/rtext.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rtext.c.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\rtextures.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\rtextures.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/rtextures.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rtextures.c.o"
+},
+{
+  "directory": "D:/Dev/SLICK_GAME/web",
+  "command": "C:\\emsdk\\upstream\\emscripten\\emcc.bat -DGRAPHICS_API_OPENGL_ES2 -DPLATFORM_WEB -ID:/Dev/SLICK_GAME/vendor/raylib-5.5/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -std=gnu99 -o vendor\\raylib-5.5\\raylib\\CMakeFiles\\raylib.dir\\utils.c.o -c D:\\Dev\\SLICK_GAME\\vendor\\raylib-5.5\\src\\utils.c",
+  "file": "D:/Dev/SLICK_GAME/vendor/raylib-5.5/src/utils.c",
+  "output": "D:/Dev/SLICK_GAME/web/vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/utils.c.o"
+}
+]

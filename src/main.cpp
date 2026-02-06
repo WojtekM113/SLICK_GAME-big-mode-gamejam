@@ -6,6 +6,11 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
@@ -41,8 +46,8 @@ class MovementComponent {
     // }
 };
 
-enum Environment { air = 0, wall = 1, box = 2, placeholder = 3 };
-enum GameStates { main_menu = 0, game = 1, pause_menu = 2, game_begin = 3, game_over = 4, restart = 5 };
+enum Environment { air = 0, wall = 1, food = 2, finish = 3 };
+enum GameStates { main_menu = 0, game = 1, pause_menu = 2, game_begin = 3, game_over = 4, restart = 5, game_nextLevel };
 static GameStates gamestate = main_menu;
 
 class Bullet {
@@ -115,8 +120,8 @@ struct Tile {
         this->type = type;
     }
 };
+std::vector<std::vector<Tile>> levels;
 
-std::vector<Tile> obstacles;
 Tile CreateTile(int currentCol, int currentRow, Color color, Environment type) {
     Rectangle rect;
     rect.x = currentCol * 64;
@@ -126,44 +131,53 @@ Tile CreateTile(int currentCol, int currentRow, Color color, Environment type) {
     Tile tile(rect, color, type);
     return tile;
 }
-bool LoadCSVLevel() {
-    std::ifstream file;
-    file.open("./LdkLevels/lvl512/simplified/Level_0/IntGrid.csv");
-    if (!file.is_open()) {
-        std::cerr << "File couldn't be opened, ldtklevel";
-        return false;
-    }
-    std::string currentLine;
-    int currentRow = 0;
-    while (std::getline(file, currentLine)) {
-        std::stringstream ss(currentLine);
-        std::string cell;
-        int currentCol = 0;
-        while (std::getline(ss, cell, ',')) {
-            int tileType = std::stoi(cell);
-            switch (tileType) {
-            case wall: {
-                obstacles.push_back(CreateTile(currentCol, currentRow, BLACK, wall));
-                break;
-            }
-            case placeholder: {
-                obstacles.push_back(CreateTile(currentCol, currentRow, GREEN, placeholder));
-                break;
-            }
-            case box: {
-                obstacles.push_back(CreateTile(currentCol, currentRow, BLUE, box));
-                break;
-            }
-            case air: {
-                obstacles.push_back(CreateTile(currentCol, currentRow, RAYWHITE, air));
-                break;
-            }
-            };
-            currentCol++;
+void LoadCSVLevel() {
+    int levelIndex = 0;
+    while (true) {
+
+        std::string path = "./LdkLevels/Level_" + std::to_string(levelIndex) + ".csv";
+        std::ifstream file(path);
+
+        if (!file.is_open()) {
+
+            break;
         }
-        currentRow++;
+
+        std::vector<Tile> level;
+        std::string currentLine;
+        int currentRow = 0;
+
+        while (std::getline(file, currentLine)) {
+            std::stringstream ss(currentLine);
+            std::string cell;
+            int currentCol = 0;
+            while (std::getline(ss, cell, ',')) {
+                int tileType = std::stoi(cell);
+                switch (tileType) {
+                case wall: {
+                    level.push_back(CreateTile(currentCol, currentRow, BLACK, wall));
+                    break;
+                }
+                case finish: {
+                    level.push_back(CreateTile(currentCol, currentRow, GREEN, finish));
+                    break;
+                }
+                case food: {
+                    level.push_back(CreateTile(currentCol, currentRow, BLUE, food));
+                    break;
+                }
+                case air: {
+                    level.push_back(CreateTile(currentCol, currentRow, RAYWHITE, air));
+                    break;
+                }
+                };
+                currentCol++;
+            }
+            currentRow++;
+        }
+        levels.push_back(level);
+        levelIndex++;
     }
-    return true;
 }
 
 class Player {
@@ -177,7 +191,8 @@ class Player {
     Color color = RED;
     int playerHealth = 3;
     float playerSpeed = 6000;
-
+    int levelIndex = 0;
+    std::vector<Tile> *currentLevel = nullptr;
     float timer = 0.0f;
     float secondsToDestroy = 3.5f;
     bool Collide(const Rectangle &rect) {
@@ -190,58 +205,83 @@ class Player {
     };
 
     void MoveAndCollide() {
+
+        if (!currentLevel) {
+            std::cerr << "Level could not be loaded";
+            return;
+        }
         float dt = GetFrameTime();
         playerPosition.x += MovementComponent.velocity.x * dt;
         playerRect.x = playerPosition.x;
-        for (int i = 0; i < obstacles.size(); i++) {
-            if (Collide(obstacles[i].tileRec)) {
-                switch (obstacles[i].type) {
-                case box: {
-                    obstacles[i].type = air;
-                    obstacles[i].tileCol = RAYWHITE;
+        for (int i = 0; i < currentLevel->size(); i++) {
+            Tile &tile = (*currentLevel)[i];
+            if (Collide(tile.tileRec)) {
+                switch (tile.type) {
+                case food: {
+                    tile.type = air;
+                    tile.tileCol = RAYWHITE;
                     Rectangle tRect{playerPosition.x, playerPosition.y, 64, 64};
                     tail.push_back(tRect);
+                    break;
                 }
                 case wall: {
                     if (MovementComponent.velocity.x > 0) {
-                        playerPosition.x = obstacles[i].tileRec.x - playerRect.width;
+                        playerPosition.x = tile.tileRec.x - playerRect.width;
                         playerRect.x = playerPosition.x;
                         MovementComponent.velocity.x = 0;
                         break;
                     } else if (MovementComponent.velocity.x < 0) {
-                        playerPosition.x = obstacles[i].tileRec.x + obstacles[i].tileRec.width;
+                        playerPosition.x = tile.tileRec.x + tile.tileRec.width;
                         playerRect.x = playerPosition.x;
                         MovementComponent.velocity.x = 0;
                         break;
                     }
                 }
+                case finish: {
+                    if (levelIndex < levels.size() - 1) {
+                        levelIndex++;
+                        gamestate = game_nextLevel;
+                        return;
+                    } else {
+                        gamestate = main_menu;
+                    }
+                }
                 };
             }
         }
-
         playerPosition.y += MovementComponent.velocity.y * dt;
         playerRect.y = playerPosition.y;
-        for (int i = 0; i < obstacles.size(); i++) {
-            if (Collide(obstacles[i].tileRec)) {
-                switch (obstacles[i].type) {
-                case box: {
-                    obstacles[i].type = air;
-                    obstacles[i].tileCol = RAYWHITE;
+        for (int i = 0; i < currentLevel->size(); i++) {
+            Tile &tile = (*currentLevel)[i];
+            if (Collide(tile.tileRec)) {
+                switch (tile.type) {
+                case food: {
+                    tile.type = air;
+                    tile.tileCol = RAYWHITE;
                     Rectangle tRect{playerPosition.x, playerPosition.y, 64, 64};
                     tail.push_back(tRect);
                     break;
                 }
                 case wall: {
                     if (MovementComponent.velocity.y > 0) {
-                        playerPosition.y = obstacles[i].tileRec.y - playerRect.height;
+                        playerPosition.y = tile.tileRec.y - playerRect.height;
                         playerRect.y = playerPosition.y;
                         MovementComponent.velocity.y = 0;
                         break;
                     } else if (MovementComponent.velocity.y < 0) {
-                        playerPosition.y = obstacles[i].tileRec.y + obstacles[i].tileRec.height;
+                        playerPosition.y = tile.tileRec.y + tile.tileRec.height;
                         playerRect.y = playerPosition.y;
                         MovementComponent.velocity.y = 0;
                         break;
+                    }
+                }
+                case finish: {
+                    if (levelIndex < levels.size() - 1) {
+                        levelIndex++;
+                        gamestate = game_nextLevel;
+                        return;
+                    } else {
+                        gamestate = main_menu;
                     }
                 }
                 };
@@ -331,15 +371,26 @@ int main() {
     GameAssets assets;
     assets.LoadTextures();
     LoadCSVLevel();
+
+    std::vector<Tile> currentLevel;
     Player player;
+
     Vector2 playerStartPosition{160, 121};
     float turnSpeed = 0.05f;
+    player.levelIndex = 0;
+
+    currentLevel = levels[player.levelIndex];
+    player.currentLevel = &currentLevel;
     Camera2D camera = {0};
+    float destroyTimer = 3.5f;
+
+    player.secondsToDestroy = destroyTimer;
     camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
     camera.offset = Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f};
     camera.zoom = 2.0f;
+
     bool startGame = false;
-    bool game_pause = false;
+
     bool gameStartPause = true;
     Crosshair crosshair;
 
@@ -347,16 +398,21 @@ int main() {
     Rectangle tRect2{player.playerPosition.x, player.playerPosition.y, 64, 64};
     player.tail.push_back(tRect1);
     player.tail.push_back(tRect2);
+
     gamestate = game_begin;
+
     while (!WindowShouldClose()) {
         ReadInput();
         crosshair.UpdateCrosshairPos();
         switch (gamestate) {
         case restart: {
-            obstacles.clear();
+
+            currentLevel = levels[player.levelIndex];
             player.tail.clear();
-            LoadCSVLevel();
-            player.secondsToDestroy = 3.5;
+
+            camera.zoom = 2.0f;
+            player.secondsToDestroy = destroyTimer;
+            player.timer = 0;
             player.playerPosition = playerStartPosition;
             player.MovementComponent.velocity = {0, 0};
 
@@ -370,7 +426,6 @@ int main() {
 
             camera.target = Vector2{player.playerPosition.x + 32.f, player.playerPosition.y + 32.f};
 
-            gameStartPause = true;
             gamestate = game_begin;
             break;
         }
@@ -430,32 +485,21 @@ int main() {
         case pause_menu: {
             break;
         }
+        case game_nextLevel: {
+            currentLevel = levels[player.levelIndex];
+
+            gamestate = restart;
+        }
         };
-        //////////////////////////////////
-        // DRAW
-        /////////////
+
         BeginDrawing();
         ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
-        switch (gamestate) {
-        case main_menu: {
-            if (GuiButton(Rectangle{(GetScreenWidth() / 2.f) - 120 / 2.f, 24, 120, 30}, "#191#Show Message")) {
-                gamestate = game;
-            }
-            startGame = false;
-            break;
-        }
-        case pause_menu: {
-            // Just skips update loop and renders game
-            // in the background
-        }
-        case game_begin : {
-            DrawText(TextFormat("Right click to start"), GetScreenHeight() * 0.5f, GetScreenWidth() * 0.5f, 64, BLACK);
-        }
-        case game: {
+
+        if (gamestate != game_over && gamestate != main_menu) {
             BeginMode2D(camera);
             {
-                for (int i = 0; i < obstacles.size(); i++) {
-                    DrawRectangleRec(obstacles[i].tileRec, obstacles[i].tileCol);
+                for (int i = 0; i < currentLevel.size(); i++) {
+                    DrawRectangleRec(currentLevel[i].tileRec, currentLevel[i].tileCol);
                 }
 
                 DrawRectangleRec(player.playerRect, player.color);
@@ -472,6 +516,29 @@ int main() {
                 DrawLineV(debugCenter, mouseWorldPos, RED);
             }
             EndMode2D();
+        }
+
+        switch (gamestate) {
+        case main_menu: {
+            if (GuiButton(Rectangle{(GetScreenWidth() / 2.f) - 120 / 2.f, 24, 240, 60}, "Start again!")) {
+                player.levelIndex = 0;
+                gamestate = game;
+            }
+            startGame = false;
+            break;
+        }
+        case pause_menu: {
+            // Just skips update loop and renders game
+            // in the background
+            break;
+        }
+        case game_begin: {
+
+            const char *click = "right click to start!";
+            DrawText(click, (GetScreenWidth() * 0.5f) - MeasureText(click, 64) * 0.5f, GetScreenHeight() * 0.5f, 64,
+                     BLUE);
+        }
+        case game: {
 
             crosshair.RenderCrosshair(assets.crosshair);
 
@@ -479,14 +546,14 @@ int main() {
             DrawText(velocityText, (GetScreenWidth() * 0.5f) - (MeasureText(velocityText, 50) * 0.5f), 0, 50, GREEN);
 
             const char *timerText = TextFormat("Time left: %.2f", player.secondsToDestroy - player.timer);
-            DrawText(timerText, (GetScreenWidth() * 0.5f) - (MeasureText(timerText, 64) * 0.5f), 64, 80, RED);
+            DrawText(timerText, (GetScreenWidth() * 0.5f) - (MeasureText(timerText, 64) * 0.5f), 64, 64, RED);
 
             break;
         }
         case game_over: {
             const char *gameOverText = TextFormat("Game over! Try again(press  ~)");
-            DrawText(gameOverText, (GetScreenWidth() * 0.5f) - (MeasureText(gameOverText, 64) * 0.5f),
-                     GetScreenHeight() * 0.5f, 64, RED);
+            DrawText(gameOverText, (GetScreenWidth() * 0.5f) - (MeasureText(gameOverText, 54) * 0.5f),
+                     GetScreenHeight() * 0.5f, 54, RED);
             break;
         }
         };

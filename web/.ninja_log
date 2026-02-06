@@ -1,0 +1,11 @@
+# ninja log v6
+24	241	7920153573723756	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rshapes.c.o	ad86fc509a47684d
+42	247	7920153573891662	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/utils.c.o	5fec959b1f3b6ac
+29	294	7920153573765834	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rtext.c.o	e6bdc8e0d74b906d
+13	402	7920153573600275	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rcore.c.o	e4c403d58b179aa2
+18	557	7920153573640911	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rmodels.c.o	fd0e5d0655a9ab19
+35	573	7920153573831738	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/rtextures.c.o	cda799c2b10d2f21
+6	770	7920153573517208	vendor/raylib-5.5/raylib/CMakeFiles/raylib.dir/raudio.c.o	26e60957870ad185
+48	1580	7920153573934177	CMakeFiles/SLICK_GAME.dir/src/main.cpp.o	e30fae6296f03466
+770	1620	7920153581160153	vendor/raylib-5.5/raylib/libraylib.a	321af74cbdf888c0
+1620	3783	7920153589688427	SLICK_GAME.html	9f79e4e098f19d6a
